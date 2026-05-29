@@ -54,11 +54,15 @@ set /a COUNT=%COUNT%-1
 if %COUNT% GTR 0 goto WAIT
 
 echo.
-echo [STOP SERVER] Fermo solo il server MC (paper.jar)...
+echo [STOP SERVER] Fermo il server MC e chiudo il cmd...
 powershell -Command ^
-  "Get-WmiObject Win32_Process | Where-Object { $_.CommandLine -like '*paper.jar*' } | ForEach-Object { Write-Host ('Stoppo processo: ' + $_.ProcessId); Stop-Process -Id $_.ProcessId -Force }"
+  "Get-WmiObject Win32_Process | Where-Object { $_.CommandLine -like '*paper.jar*' } | ForEach-Object { $parent = Get-WmiObject Win32_Process -Filter ('ProcessId=' + $_.ParentProcessId); Stop-Process -Id $_.ProcessId -Force; if ($parent -and $parent.Name -eq 'cmd.exe') { Stop-Process -Id $parent.ProcessId -Force } }"
 echo [STOP SERVER] Attendo chiusura...
 timeout /t 5 /nobreak >nul
+
+echo [PULIZIA] Rimuovo jar vecchio dalla temp...
+rd /s /q "%TEMP%\CorpseReborn-jar" >nul 2>&1
+del /f /q "%TEMP%\CorpseReborn-jar.zip" >nul 2>&1
 
 echo [DOWNLOAD] Scarico il JAR da GitHub...
 echo.
