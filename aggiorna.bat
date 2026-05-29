@@ -6,7 +6,8 @@ set SOURCE=C:\Users\Lorenzo\Downloads\CorpseReborn_1.21_v2_source\CorpseReborn_1
 set SERVER=C:\Users\Lorenzo\Downloads\ServerMC_Test\ServerMC
 set GITHUB_USER=ItsLoree
 set REPO_NAME=CorpseReborn
-set GITHUB_TOKEN=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
+set GITHUB_TOKEN=
+set /p GITHUB_TOKEN=<"%SOURCE%\token.txt"
 
 echo.
 echo  ================================================
