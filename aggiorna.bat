@@ -54,10 +54,11 @@ set /a COUNT=%COUNT%-1
 if %COUNT% GTR 0 goto WAIT
 
 echo.
-echo [STOP SERVER] Fermo il server...
-taskkill /FI "WINDOWTITLE eq Server Minecraft*" /F >nul 2>&1
-taskkill /FI "WINDOWTITLE eq server minecraft*" /F >nul 2>&1
-timeout /t 3 /nobreak >nul
+echo [STOP SERVER] Fermo solo il server MC (paper.jar)...
+powershell -Command ^
+  "Get-WmiObject Win32_Process | Where-Object { $_.CommandLine -like '*paper.jar*' } | ForEach-Object { Write-Host ('Stoppo processo: ' + $_.ProcessId); Stop-Process -Id $_.ProcessId -Force }"
+echo [STOP SERVER] Attendo chiusura...
+timeout /t 5 /nobreak >nul
 
 echo [DOWNLOAD] Scarico il JAR da GitHub...
 echo.
