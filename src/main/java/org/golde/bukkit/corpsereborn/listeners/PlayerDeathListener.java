@@ -1,5 +1,7 @@
 package org.golde.bukkit.corpsereborn.listeners;
 
+// Test deploy automatico v2 - by Griffer
+
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
