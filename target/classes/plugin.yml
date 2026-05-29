@@ -1,0 +1,47 @@
+main: org.golde.bukkit.corpsereborn.Main
+name: CorpseReborn
+authors: ["Griffer"]
+website: https://github.com/Griffer/CorpseReborn
+version: 3.0.0
+description: "Cadaveri in Minecraft! | Dead Bodies in Minecraft! | Paper 1.21 | by Griffer"
+load: POSTWORLD
+api-version: 1.21
+softdepend: [WorldGuard]
+
+commands:
+  spawncorpse:
+    usage: /<command> [Player]
+    description: Spawna un cadavere
+    permission: corpses.spawn
+    aliases: [spawnc, scorpse, sc]
+  removecorpse:
+    usage: /<command> [Radius]
+    description: Rimuovi cadaveri nel raggio
+    permission: corpses.remove
+    aliases: [removec, rcorpse, rc]
+  corpsereborn:
+    usage: /<command>
+    description: Pannello admin CorpseReborn
+    aliases: [cr, corpser, corpse, creborn]
+  resendcorpses:
+    usage: /<command>
+    description: Info cadaveri attivi
+    permission: corpses.resend
+    aliases: [resendc, cresend]
+  togglecorpse:
+    usage: /<command>
+    description: Attiva/disattiva visibilità cadaveri
+    permission: corpses.toggle
+    aliases: [togglec, ctoggle, togglecorpses]
+
+permissions:
+  corpses.spawn:
+    default: op
+  corpses.resend:
+    default: op
+  corpses.remove:
+    default: op
+  corpses.reload:
+    default: op
+  corpses.toggle:
+    default: op

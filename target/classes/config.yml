@@ -1,0 +1,33 @@
+# CorpseReborn Configuration - by Griffer
+# Developed by: Griffer
+# Plugin: CorpseReborn v3.0.0
+
+# Language: it = Italiano, en = English
+language: it
+
+# How long (in seconds) a corpse lasts before despawning. Set to -1 for permanent.
+corpse-time: 300
+
+# Should corpses be saved and reloaded after server restart?
+save-corpses: true
+
+# Should a looting inventory appear when right-clicking a corpse?
+looting-inventory: true
+
+# Show floating name tag above corpse?
+show-nametag: true
+
+# Should corpses show the player's armor?
+render-armor: true
+
+# Damage causes that should NOT create a corpse
+no-corpse-on-death-causes: []
+
+# Worlds where corpses are disabled (leave empty to enable in all worlds)
+disabled-worlds: []
+
+# Check for updates on startup?
+check-for-updates: true
+
+# Should the corpse despawn immediately when fully looted? (true = despawn on loot, false = wait the full timer)
+despawn-on-looted: false

@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <name>CorpseReborn</name>
-    <description>Dead Bodies in Minecraft! Updated for Paper 1.21</description>
+    <description>Dead Bodies in Minecraft! - by Griffer</description>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -26,7 +26,7 @@
     </repositories>
 
     <dependencies>
-        <!-- Paper API 1.21 -->
+        <!-- Paper API 1.21 con accesso NMS (mojang-mapped) -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
@@ -44,6 +44,9 @@
                 <configuration>
                     <source>21</source>
                     <target>21</target>
+                    <compilerArgs>
+                        <arg>--add-opens=java.base/java.lang=ALL-UNNAMED</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>
@@ -53,9 +56,7 @@
                 <executions>
                     <execution>
                         <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
+                        <goals><goal>shade</goal></goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                         </configuration>

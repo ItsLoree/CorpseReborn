@@ -11,6 +11,9 @@ public class PlayerJoinListener implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        // Nothing extra needed - armor stands are persistent entities
+        // Invia i pacchetti dei cadaveri al giocatore appena entrato
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            plugin.getCorpseManager().resendCorpsesToPlayer(event.getPlayer());
+        }, 20L);
     }
 }

@@ -1,7 +1,7 @@
 # CorpseReborn - Lingua Italiana
 # by Griffer
 
-prefix: "&8[&6⚰ CorpseReborn&8] &r"
+prefix: "&8[&6CorpseReborn&8] &r"
 
 gui-name: "&8Cadavere di &f%player%"
 finish-looting: "&7Il cadavere di &f%player% &7è stato completamente saccheggiato."
@@ -15,6 +15,6 @@ toggle-on: "&aVisibilità cadaveri &2ATTIVATA&a."
 toggle-off: "&cVisibilità cadaveri &4DISATTIVATA&c."
 active-corpses: "&aCi sono attualmente &e%count% &acadaveri attivi."
 timer-set: "&aTimer despawn impostato a &e%time%&a."
-despawn-looted-set: "&aDespawn se lootato impostato a &e%value%&a."
-invalid-number: "&cNumero non valido! Usa un numero intero (es. 300) o -1 per permanente."
-invalid-boolean: "&cValore non valido! Usa &fsi&c/&fno&c oppure &ftrue&c/&ffalse&c."
+despawn-looted-set: "&aOpzione despawn-se-lootato impostata a &e%value%&a."
+invalid-number: "&cNumero non valido. Usa un intero (es. 300 per 5 minuti, -1 per permanente)."
+invalid-boolean: "&cValore non valido. Usa &ftrue&c/&ffalse &co &fsi&c/&fno&c."
