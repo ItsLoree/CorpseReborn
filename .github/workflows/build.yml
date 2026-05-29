@@ -4,6 +4,9 @@ on:
   push:
     branches: [ main ]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,9 +20,10 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+          cache: maven
 
       - name: Compila con Maven
-        run: mvn clean package -q
+        run: mvn clean package -q --no-transfer-progress
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
