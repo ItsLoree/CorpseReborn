@@ -28,3 +28,6 @@ disabled-worlds: []
 
 # Check for updates on startup?
 check-for-updates: true
+
+# Should the corpse despawn immediately when fully looted? (true = despawn on loot, false = wait the full timer)
+despawn-on-looted: false

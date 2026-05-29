@@ -46,6 +46,9 @@ public class InventoryClickListener implements Listener {
             if (data.getInventory() != null && data.getInventory().equals(event.getInventory())) {
                 if (data.isInventoryEmpty()) {
                     player.sendMessage(Lang.get("finish-looting", "%player%", data.getPlayerName()));
+                    if (plugin.getConfigData().shouldDespawnOnLooted()) {
+                        plugin.getCorpseManager().removeCorpse(data);
+                    }
                 }
                 break;
             }

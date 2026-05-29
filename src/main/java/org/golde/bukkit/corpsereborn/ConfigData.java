@@ -64,4 +64,18 @@ public class ConfigData {
     public List<String> getDisabledWorlds() {
         return config.getStringList("disabled-worlds");
     }
+
+    public boolean shouldDespawnOnLooted() {
+        return config.getBoolean("despawn-on-looted", false);
+    }
+
+    public void setCorpseTime(int seconds) {
+        plugin.getConfig().set("corpse-time", seconds);
+        plugin.saveConfig();
+    }
+
+    public void setDespawnOnLooted(boolean value) {
+        plugin.getConfig().set("despawn-on-looted", value);
+        plugin.saveConfig();
+    }
 }

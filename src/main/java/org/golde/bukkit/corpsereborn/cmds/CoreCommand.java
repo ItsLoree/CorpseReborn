@@ -40,6 +40,39 @@ public class CoreCommand implements CommandExecutor {
             return true;
         }
 
+        if (args.length == 2 && args[0].equalsIgnoreCase("timer")) {
+            if (!sender.hasPermission("corpses.reload")) {
+                sender.sendMessage(Lang.get("no-permission"));
+                return true;
+            }
+            try {
+                int seconds = Integer.parseInt(args[1]);
+                if (seconds < -1) seconds = -1;
+                plugin.getConfigData().setCorpseTime(seconds);
+                String timeStr = seconds == -1 ? "∞ (permanente)" : seconds + "s";
+                sender.sendMessage(Lang.get("timer-set", "%time%", timeStr));
+            } catch (NumberFormatException e) {
+                sender.sendMessage(Lang.get("invalid-number"));
+            }
+            return true;
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("despawnlooted")) {
+            if (!sender.hasPermission("corpses.reload")) {
+                sender.sendMessage(Lang.get("no-permission"));
+                return true;
+            }
+            String val = args[1].toLowerCase();
+            if (!val.equals("true") && !val.equals("false") && !val.equals("si") && !val.equals("no")) {
+                sender.sendMessage(Lang.get("invalid-boolean"));
+                return true;
+            }
+            boolean enabled = val.equals("true") || val.equals("si");
+            plugin.getConfigData().setDespawnOnLooted(enabled);
+            sender.sendMessage(Lang.get("despawn-looted-set", "%value%", enabled ? "SI" : "NO"));
+            return true;
+        }
+
         // Default: mostra il pannello admin
         sendAdminPanel(sender);
         return true;
@@ -81,12 +114,22 @@ public class CoreCommand implements CommandExecutor {
             sender.sendMessage(Lang.color("  &8└─────────────────────────────────────"));
         }
 
+        int timer = plugin.getConfigData().getCorpseTime();
+        boolean dol = plugin.getConfigData().shouldDespawnOnLooted();
+        String timerStr = timer == -1 ? "&a∞ permanente" : "&e" + timer + "s";
+        String dolStr = dol ? "&aSI" : "&cNO";
+
         sender.sendMessage(Lang.color("  &8┌─────────────────────────────────────"));
-        sender.sendMessage(Lang.color("  &8│ &e/cr reload       &8- &7Ricarica config"));
-        sender.sendMessage(Lang.color("  &8│ &e/cr list         &8- &7Lista cadaveri"));
-        sender.sendMessage(Lang.color("  &8│ &e/spawncorpse     &8- &7Spawna cadavere"));
-        sender.sendMessage(Lang.color("  &8│ &e/removecorpse    &8- &7Rimuovi cadaveri"));
-        sender.sendMessage(Lang.color("  &8│ &e/togglecorpse    &8- &7Attiva/disattiva"));
+        sender.sendMessage(Lang.color("  &8│ &7Timer despawn&8: " + timerStr));
+        sender.sendMessage(Lang.color("  &8│ &7Despawn se lootato&8: " + dolStr));
+        sender.sendMessage(Lang.color("  &8├─────────────────────────────────────"));
+        sender.sendMessage(Lang.color("  &8│ &e/cr reload               &8- &7Ricarica config"));
+        sender.sendMessage(Lang.color("  &8│ &e/cr timer <sec>          &8- &7Imposta timer despawn"));
+        sender.sendMessage(Lang.color("  &8│ &e/cr despawnlooted <si/no>&8- &7Despawn se lootato"));
+        sender.sendMessage(Lang.color("  &8│ &e/cr list                 &8- &7Lista cadaveri"));
+        sender.sendMessage(Lang.color("  &8│ &e/spawncorpse             &8- &7Spawna cadavere"));
+        sender.sendMessage(Lang.color("  &8│ &e/removecorpse            &8- &7Rimuovi cadaveri"));
+        sender.sendMessage(Lang.color("  &8│ &e/togglecorpse            &8- &7Attiva/disattiva"));
         sender.sendMessage(Lang.color("  &8└─────────────────────────────────────"));
         sender.sendMessage(Lang.color(""));
     }

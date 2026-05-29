@@ -28,14 +28,15 @@ public class CorpseManager {
     private final List<CorpseData> corpses = new ArrayList<>();
     private File saveFile;
 
-    // Angoli per simulare il corpo disteso a terra
-    // Il body stand è ruotato di 90° sull'asse X per "sdraiarsi"
-    private static final EulerAngle BODY_ANGLE     = new EulerAngle(Math.toRadians(90), 0, 0);
-    private static final EulerAngle HEAD_ANGLE      = new EulerAngle(Math.toRadians(0), 0, 0);
-    private static final EulerAngle LEFT_ARM_ANGLE  = new EulerAngle(Math.toRadians(90), 0, Math.toRadians(-10));
-    private static final EulerAngle RIGHT_ARM_ANGLE = new EulerAngle(Math.toRadians(90), 0, Math.toRadians(10));
-    private static final EulerAngle LEFT_LEG_ANGLE  = new EulerAngle(Math.toRadians(90), 0, Math.toRadians(-5));
-    private static final EulerAngle RIGHT_LEG_ANGLE = new EulerAngle(Math.toRadians(90), 0, Math.toRadians(5));
+    // Angoli per simulare il corpo disteso a terra.
+    // Con body a +90° sull'asse X, il torso è orizzontale (faccia verso il basso).
+    // L'entity viene calata di ~0.6 blocchi così il torso/skull appare a livello del suolo.
+    private static final EulerAngle BODY_ANGLE      = new EulerAngle(Math.toRadians(90),  0, 0);
+    private static final EulerAngle HEAD_ANGLE       = new EulerAngle(Math.toRadians(0),   0, 0);
+    private static final EulerAngle LEFT_ARM_ANGLE   = new EulerAngle(Math.toRadians(80),  0, Math.toRadians(-50));
+    private static final EulerAngle RIGHT_ARM_ANGLE  = new EulerAngle(Math.toRadians(80),  0, Math.toRadians(50));
+    private static final EulerAngle LEFT_LEG_ANGLE   = new EulerAngle(Math.toRadians(85),  0, Math.toRadians(-8));
+    private static final EulerAngle RIGHT_LEG_ANGLE  = new EulerAngle(Math.toRadians(85),  0, Math.toRadians(8));
 
     public CorpseManager(Main plugin) {
         this.plugin = plugin;
@@ -82,9 +83,9 @@ public class CorpseManager {
         ConfigData cfg = plugin.getConfigData();
         Location loc = data.getLocation().clone();
 
-        // Offset verso il basso per far sembrare il corpo a terra (non galleggiante)
-        // -0.2 è il valore ottimale per Paper 1.21
-        Location bodyLoc = loc.clone().add(0, -0.2, 0);
+        // Con body pose a 90° il torso orizzontale si trova a entity_y + 0.75.
+        // Offset -0.6: entity_y = death_y - 0.6 → torso a death_y + 0.15 (appoggiato a terra).
+        Location bodyLoc = loc.clone().add(0, -0.6, 0);
 
         ArmorStand body = loc.getWorld().spawn(bodyLoc, ArmorStand.class, stand -> {
             stand.setVisible(false);          // corpo invisibile, usiamo armor+skull
