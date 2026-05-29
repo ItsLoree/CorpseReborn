@@ -2,7 +2,7 @@ package org.golde.bukkit.corpsereborn.listeners;
 
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.golde.bukkit.corpsereborn.Main;
 
 public class PlayerRespawnListener implements Listener {
