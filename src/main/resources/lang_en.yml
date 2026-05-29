@@ -1,0 +1,16 @@
+# CorpseReborn - English Language
+# by Griffer
+
+prefix: "&8[&6CorpseReborn&8] &r"
+
+gui-name: "&8%player%&8's Corpse"
+finish-looting: "&7The corpse of &f%player% &7has been fully looted."
+corpse-spawned: "&7The corpse of &f%player% &7has appeared."
+no-permission: "&cYou don't have permission to use this command."
+player-not-found: "&cPlayer '&f%player%&c' not found."
+corpse-spawned-cmd: "&aSpawned a corpse of &f%player%&a!"
+removed-corpses: "&aRemoved &e%count% &acorpse(s) within &e%radius% &ablocks."
+config-reloaded: "&aConfiguration reloaded!"
+toggle-on: "&aCorpse visibility &2ENABLED&a."
+toggle-off: "&cCorpse visibility &4DISABLED&c."
+active-corpses: "&aThere are currently &e%count% &aactive corpse(s)."

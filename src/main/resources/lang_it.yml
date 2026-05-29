@@ -1,0 +1,16 @@
+# CorpseReborn - Lingua Italiana
+# by Griffer
+
+prefix: "&8[&6CorpseReborn&8] &r"
+
+gui-name: "&8Cadavere di &f%player%"
+finish-looting: "&7Il cadavere di &f%player% &7è stato completamente saccheggiato."
+corpse-spawned: "&7Il cadavere di &f%player% &7è apparso."
+no-permission: "&cNon hai il permesso per usare questo comando."
+player-not-found: "&cGiocatore '&f%player%&c' non trovato."
+corpse-spawned-cmd: "&aHai spawnato un cadavere di &f%player%&a!"
+removed-corpses: "&aRimossi &e%count% &acadaveri nel raggio di &e%radius% &ablocchi."
+config-reloaded: "&aConfigurazione ricaricata!"
+toggle-on: "&aVisibilità cadaveri &2ATTIVATA&a."
+toggle-off: "&cVisibilità cadaveri &4DISATTIVATA&c."
+active-corpses: "&aCi sono attualmente &e%count% &acadaveri attivi."
