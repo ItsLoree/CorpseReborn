@@ -46,7 +46,7 @@ public class Main extends JavaPlugin {
         Bukkit.getScheduler().runTaskLater(this, () -> corpseManager.loadCorpses(), 20L);
 
         getLogger().info("╔══════════════════════════════╗");
-        getLogger().info("║    CorpseReborn v" + getDescription().getVersion() + "        ║");
+        getLogger().info("║    CorpseReborn v" + getDescription().getVersion() + " TEST OK ║");
         getLogger().info("║    Developed by Griffer       ║");
         getLogger().info("║    Paper 1.21 Edition         ║");
         getLogger().info("╚══════════════════════════════╝");
