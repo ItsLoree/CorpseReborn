@@ -1,13 +1,30 @@
 package org.golde.bukkit.corpsereborn.nms;
 
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.PropertyMap;
+import com.mojang.datafixers.util.Pair;
+import net.minecraft.network.protocol.game.*;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import org.bukkit.*;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.craftbukkit.CraftServer;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.SkullMeta;
-import org.bukkit.util.EulerAngle;
 import org.golde.bukkit.corpsereborn.ConfigData;
 import org.golde.bukkit.corpsereborn.Lang;
 import org.golde.bukkit.corpsereborn.Main;
@@ -15,11 +32,14 @@ import org.golde.bukkit.corpsereborn.CorpseAPI.events.CorpseRemoveEvent;
 import org.golde.bukkit.corpsereborn.CorpseAPI.events.CorpseSpawnEvent;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * CorpseManager - by Griffer
- * Corpo disteso usando due ArmorStand sovrapposti.
+ * Usa NMS Paper 1.21 per spawnare fake player in posa SLEEPING
+ * identico al plugin originale CorpseReborn 1.16.
  */
 public class CorpseManager {
 
@@ -32,8 +52,8 @@ public class CorpseManager {
         this.saveFile = new File(plugin.getDataFolder(), "corpses.yml");
     }
 
-    public CorpseData spawnCorpse(Player player, String overrideName, Location location,
-                                   Inventory inventory, int facing) {
+    public CorpseData spawnCorpse(org.bukkit.entity.Player player, String overrideName,
+                                   Location location, Inventory inventory, int facing) {
         ConfigData cfg = plugin.getConfigData();
         String playerName = (overrideName != null && !overrideName.isEmpty()) ? overrideName : player.getName();
         String playerUUID = player.getUniqueId().toString();
@@ -45,7 +65,23 @@ public class CorpseManager {
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) return null;
 
-        spawnArmorStands(data, player);
+        // Crea il fake player NMS
+        int entityId = getNextEntityId();
+        data.setEntityId(entityId);
+
+        // GameProfile con skin del giocatore reale
+        GameProfile realProfile = ((CraftPlayer) player).getProfile();
+        GameProfile fakeProfile = new GameProfile(UUID.randomUUID(), playerName);
+        fakeProfile.getProperties().putAll(realProfile.getProperties());
+        data.setFakeProfile(fakeProfile);
+
+        // Spawna hitbox ArmorStand per click
+        spawnHitbox(data, location);
+
+        // Invia pacchetti a tutti
+        for (org.bukkit.entity.Player online : Bukkit.getOnlinePlayers()) {
+            sendSpawnPackets(online, data, player);
+        }
 
         if (cfg.getCorpseTime() > 0) {
             int taskId = Bukkit.getScheduler().scheduleSyncDelayedTask(plugin,
@@ -58,72 +94,147 @@ public class CorpseManager {
         return data;
     }
 
-    private void spawnArmorStands(CorpseData data, Player player) {
-        ConfigData cfg = plugin.getConfigData();
-        Location loc = data.getLocation().clone();
-        float yaw = player != null ? player.getLocation().getYaw() : loc.getYaw();
+    public void sendSpawnPackets(org.bukkit.entity.Player viewer, CorpseData data, org.bukkit.entity.Player deadPlayer) {
+        if (Main.whoCanNotSeeCorpses.contains(viewer.getName())) return;
 
-        // Body stand - disteso a terra
-        Location bodyLoc = loc.clone().add(0, -0.8, 0);
-        ArmorStand body = loc.getWorld().spawn(bodyLoc, ArmorStand.class, stand -> {
+        GameProfile profile = data.getFakeProfile();
+        if (profile == null) return;
+
+        Location loc = data.getLocation();
+        int entityId = data.getEntityId();
+        ServerGamePacketListenerImpl conn = ((CraftPlayer) viewer).getHandle().connection;
+        ServerLevel level = ((CraftWorld) loc.getWorld()).getHandle();
+
+        try {
+            // 1. Aggiungi alla player list
+            ServerPlayer fakeServerPlayer = createFakeServerPlayer(profile, loc, level);
+            fakeServerPlayer.setId(entityId);
+
+            conn.send(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(List.of(fakeServerPlayer)));
+
+            // 2. Aspetta 2 tick poi spawna
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                try {
+                    // Spawn packet
+                    conn.send(new ClientboundAddEntityPacket(
+                            entityId,
+                            profile.getId(),
+                            loc.getX(), loc.getY(), loc.getZ(),
+                            loc.getYaw(), 0f,
+                            EntityType.PLAYER,
+                            0,
+                            Vec3.ZERO,
+                            loc.getYaw()
+                    ));
+
+                    // Metadata: SLEEPING pose + skin layers
+                    List<SynchedEntityData.DataValue<?>> metaList = new ArrayList<>();
+                    // Index 6 = Pose (SLEEPING)
+                    metaList.add(SynchedEntityData.DataValue.create(
+                            net.minecraft.world.entity.LivingEntity.DATA_POSE,
+                            Pose.SLEEPING
+                    ));
+                    // Index 17 = skin layers (0x7F = tutto visibile)
+                    metaList.add(SynchedEntityData.DataValue.create(
+                            Player.DATA_PLAYER_MODE_CUSTOMISATION,
+                            (byte) 0x7F
+                    ));
+                    conn.send(new ClientboundSetEntityDataPacket(entityId, metaList));
+
+                    // Sleeping position (bed location)
+                    Location bedLoc = getBedLocation(loc);
+                    List<SynchedEntityData.DataValue<?>> sleepMeta = new ArrayList<>();
+                    sleepMeta.add(SynchedEntityData.DataValue.create(
+                            net.minecraft.world.entity.LivingEntity.DATA_SLEEPING_POS_ID,
+                            Optional.of(new net.minecraft.core.BlockPos(
+                                    bedLoc.getBlockX(), bedLoc.getBlockY(), bedLoc.getBlockZ()))
+                    ));
+                    conn.send(new ClientboundSetEntityDataPacket(entityId, sleepMeta));
+
+                    // Fake bed block
+                    BlockState bedState = Blocks.WHITE_BED.defaultBlockState()
+                            .setValue(BedBlock.PART, net.minecraft.world.level.block.state.properties.BedPart.HEAD);
+                    conn.send(new ClientboundBlockUpdatePacket(
+                            new net.minecraft.core.BlockPos(bedLoc.getBlockX(), bedLoc.getBlockY(), bedLoc.getBlockZ()),
+                            bedState
+                    ));
+
+                    // Equipaggiamento
+                    if (plugin.getConfigData().shouldRenderArmor() && deadPlayer != null) {
+                        sendEquipment(conn, entityId, deadPlayer);
+                    }
+
+                    // Rimuovi dalla tablist dopo 40 tick
+                    Bukkit.getScheduler().runTaskLater(plugin, () ->
+                            conn.send(new ClientboundPlayerInfoRemovePacket(List.of(profile.getId()))), 40L);
+
+                } catch (Exception e) {
+                    plugin.getLogger().warning("[CorpseReborn] Errore spawn: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }, 2L);
+
+        } catch (Exception e) {
+            plugin.getLogger().warning("[CorpseReborn] Errore info: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private ServerPlayer createFakeServerPlayer(GameProfile profile, Location loc, ServerLevel level) {
+        ServerPlayer fake = new ServerPlayer(
+                ((CraftServer) Bukkit.getServer()).getServer(),
+                level,
+                profile,
+                net.minecraft.server.level.ClientInformation.createDefault()
+        );
+        fake.setPos(loc.getX(), loc.getY(), loc.getZ());
+        fake.setYRot(loc.getYaw());
+        fake.setXRot(0f);
+        return fake;
+    }
+
+    private void sendEquipment(ServerGamePacketListenerImpl conn, int entityId, org.bukkit.entity.Player deadPlayer) {
+        try {
+            var inv = deadPlayer.getInventory();
+            List<Pair<net.minecraft.world.entity.EquipmentSlot, ItemStack>> equipment = new ArrayList<>();
+            if (inv.getHelmet() != null)     equipment.add(Pair.of(net.minecraft.world.entity.EquipmentSlot.HEAD,   CraftItemStack.asNMSCopy(inv.getHelmet())));
+            if (inv.getChestplate() != null) equipment.add(Pair.of(net.minecraft.world.entity.EquipmentSlot.CHEST,  CraftItemStack.asNMSCopy(inv.getChestplate())));
+            if (inv.getLeggings() != null)   equipment.add(Pair.of(net.minecraft.world.entity.EquipmentSlot.LEGS,   CraftItemStack.asNMSCopy(inv.getLeggings())));
+            if (inv.getBoots() != null)      equipment.add(Pair.of(net.minecraft.world.entity.EquipmentSlot.FEET,   CraftItemStack.asNMSCopy(inv.getBoots())));
+            if (!equipment.isEmpty()) conn.send(new ClientboundSetEquipmentPacket(entityId, equipment));
+        } catch (Exception e) {
+            plugin.getLogger().warning("[CorpseReborn] Errore equipment: " + e.getMessage());
+        }
+    }
+
+    private void spawnHitbox(CorpseData data, Location loc) {
+        ArmorStand hitbox = loc.getWorld().spawn(loc, ArmorStand.class, stand -> {
             stand.setVisible(false);
             stand.setGravity(false);
             stand.setInvulnerable(true);
             stand.setSmall(false);
-            stand.setArms(true);
-            stand.setBasePlate(false);
-            stand.setCanPickupItems(false);
-            stand.setRotation(yaw, 0);
-
-            // Pose corpo disteso
-            stand.setBodyPose(new EulerAngle(Math.toRadians(90), 0, 0));
-            stand.setLeftArmPose(new EulerAngle(Math.toRadians(90), 0, Math.toRadians(-30)));
-            stand.setRightArmPose(new EulerAngle(Math.toRadians(90), 0, Math.toRadians(30)));
-            stand.setLeftLegPose(new EulerAngle(Math.toRadians(90), 0, Math.toRadians(-5)));
-            stand.setRightLegPose(new EulerAngle(Math.toRadians(90), 0, Math.toRadians(5)));
-
-            // Armatura
-            if (cfg.shouldRenderArmor() && player != null) {
-                var inv = player.getInventory();
-                if (inv.getChestplate() != null) stand.getEquipment().setChestplate(inv.getChestplate().clone());
-                if (inv.getLeggings() != null)   stand.getEquipment().setLeggings(inv.getLeggings().clone());
-                if (inv.getBoots() != null)       stand.getEquipment().setBoots(inv.getBoots().clone());
-            }
-
-            stand.setCustomNameVisible(false);
-        });
-
-        // Head stand - skull del giocatore posizionato alla testa
-        double rad = Math.toRadians(yaw);
-        Location headLoc = bodyLoc.clone().add(-Math.sin(rad) * 0.9, 0.25, Math.cos(rad) * 0.9);
-        ArmorStand head = loc.getWorld().spawn(headLoc, ArmorStand.class, stand -> {
-            stand.setVisible(false);
-            stand.setGravity(false);
-            stand.setInvulnerable(true);
-            stand.setSmall(true);
             stand.setArms(false);
             stand.setBasePlate(false);
             stand.setCanPickupItems(false);
             stand.setCustomNameVisible(false);
-            stand.setRotation(yaw, 0);
-
-            // Skull con skin del giocatore
-            ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
-            SkullMeta meta = (SkullMeta) skull.getItemMeta();
-            if (player != null) {
-                meta.setOwningPlayer(player);
-            } else {
-                try {
-                    OfflinePlayer op = Bukkit.getOfflinePlayer(UUID.fromString(data.getPlayerUUID()));
-                    meta.setOwningPlayer(op);
-                } catch (Exception ignored) {}
-            }
-            skull.setItemMeta(meta);
-            stand.getEquipment().setHelmet(skull);
         });
+        data.setBodyStand(hitbox);
+        data.setHeadStand(hitbox);
+    }
 
-        data.setBodyStand(body);
-        data.setHeadStand(head);
+    private Location getBedLocation(Location loc) {
+        return loc.clone().subtract(0, 2, 0);
+    }
+
+    private int getNextEntityId() {
+        try {
+            Field entityCount = net.minecraft.world.entity.Entity.class.getDeclaredField("ENTITY_COUNTER");
+            entityCount.setAccessible(true);
+            AtomicInteger counter = (AtomicInteger) entityCount.get(null);
+            return counter.incrementAndGet();
+        } catch (Exception e) {
+            return new Random().nextInt(1000000) + 1000000;
+        }
     }
 
     public void removeCorpse(CorpseData data) {
@@ -132,6 +243,23 @@ public class CorpseManager {
 
         CorpseRemoveEvent event = new CorpseRemoveEvent(data);
         Bukkit.getPluginManager().callEvent(event);
+
+        // Rimuovi fake player per tutti
+        if (data.getEntityId() > 0) {
+            for (org.bukkit.entity.Player online : Bukkit.getOnlinePlayers()) {
+                try {
+                    ServerGamePacketListenerImpl conn = ((CraftPlayer) online).getHandle().connection;
+                    conn.send(new ClientboundRemoveEntitiesPacket(data.getEntityId()));
+                    // Ripristina bed block
+                    Location bedLoc = getBedLocation(data.getLocation());
+                    conn.send(new ClientboundBlockUpdatePacket(
+                            new net.minecraft.core.BlockPos(bedLoc.getBlockX(), bedLoc.getBlockY(), bedLoc.getBlockZ()),
+                            ((CraftWorld) bedLoc.getWorld()).getHandle().getBlockState(
+                                    new net.minecraft.core.BlockPos(bedLoc.getBlockX(), bedLoc.getBlockY(), bedLoc.getBlockZ()))
+                    ));
+                } catch (Exception ignored) {}
+            }
+        }
 
         if (data.getBodyStand() != null && !data.getBodyStand().isDead()) data.getBodyStand().remove();
         if (data.getHeadStand() != null && !data.getHeadStand().isDead()
@@ -161,8 +289,8 @@ public class CorpseManager {
 
     public List<CorpseData> getAllCorpses() { return Collections.unmodifiableList(corpses); }
 
-    public void resendCorpsesToPlayer(Player player) {
-        // Con ArmorStand non serve resend - sono entità reali
+    public void resendCorpsesToPlayer(org.bukkit.entity.Player player) {
+        for (CorpseData data : corpses) sendSpawnPackets(player, data, null);
     }
 
     private Location findGroundLocation(Location loc) {
@@ -197,7 +325,7 @@ public class CorpseManager {
             yml.set(p + "selected-slot", data.getSelectedSlot());
             if (data.getInventory() != null) {
                 for (int slot = 0; slot < data.getInventory().getSize(); slot++) {
-                    ItemStack item = data.getInventory().getItem(slot);
+                    org.bukkit.inventory.ItemStack item = data.getInventory().getItem(slot);
                     if (item != null) yml.set(p + "inventory." + slot, item);
                 }
             }
@@ -227,18 +355,22 @@ public class CorpseManager {
             int corpseTime   = yml.getInt(p + "corpse-time", plugin.getConfigData().getCorpseTime());
             int selectedSlot = yml.getInt(p + "selected-slot", 0);
             if (corpseTime > 0 && (System.currentTimeMillis() - spawnTime) / 1000 >= corpseTime) continue;
-            Inventory inv = Bukkit.createInventory(null, 54, playerName + "'s Corpse");
+            org.bukkit.inventory.Inventory inv = Bukkit.createInventory(null, 54, playerName + "'s Corpse");
             if (yml.contains(p + "inventory")) {
                 for (String slotKey : yml.getConfigurationSection(p + "inventory").getKeys(false)) {
                     try {
                         int slot = Integer.parseInt(slotKey);
-                        ItemStack item = yml.getItemStack(p + "inventory." + slotKey);
+                        org.bukkit.inventory.ItemStack item = yml.getItemStack(p + "inventory." + slotKey);
                         if (item != null) inv.setItem(slot, item);
                     } catch (NumberFormatException ignored) {}
                 }
             }
             CorpseData data = new CorpseData(playerName, yml.getString(p + "player-uuid", ""), loc, inv, selectedSlot, corpseTime);
-            spawnArmorStands(data, null);
+            data.setEntityId(getNextEntityId());
+            GameProfile profile = new GameProfile(UUID.randomUUID(), playerName);
+            data.setFakeProfile(profile);
+            spawnHitbox(data, loc);
+            for (org.bukkit.entity.Player online : Bukkit.getOnlinePlayers()) sendSpawnPackets(online, data, null);
             if (corpseTime > 0) {
                 long elapsed   = (System.currentTimeMillis() - spawnTime) / 1000;
                 long remaining = Math.max(1, corpseTime - elapsed);

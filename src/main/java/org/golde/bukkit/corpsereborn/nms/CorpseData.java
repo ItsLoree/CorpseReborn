@@ -1,5 +1,6 @@
 package org.golde.bukkit.corpsereborn.nms;
 
+import com.mojang.authlib.GameProfile;
 import org.bukkit.Location;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.inventory.Inventory;
@@ -19,6 +20,8 @@ public class CorpseData {
 
     private ArmorStand bodyStand;
     private ArmorStand headStand;
+    private int entityId;
+    private GameProfile fakeProfile;
     private int despawnTaskId = -1;
 
     public CorpseData(String playerName, String playerUUID, Location location,
@@ -48,6 +51,11 @@ public class CorpseData {
     public void setBodyStand(ArmorStand s) { this.bodyStand = s; }
     public ArmorStand getHeadStand()  { return headStand; }
     public void setHeadStand(ArmorStand s) { this.headStand = s; }
+
+    public int getEntityId() { return entityId; }
+    public void setEntityId(int id) { this.entityId = id; }
+    public GameProfile getFakeProfile() { return fakeProfile; }
+    public void setFakeProfile(GameProfile p) { this.fakeProfile = p; }
 
     public int getDespawnTaskId()  { return despawnTaskId; }
     public void setDespawnTaskId(int id) { this.despawnTaskId = id; }

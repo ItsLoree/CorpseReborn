@@ -22,6 +22,28 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Setup Maven settings per Paper dev bundle
+        run: |
+          mkdir -p ~/.m2
+          cat > ~/.m2/settings.xml << 'SETTINGS'
+          <settings>
+            <profiles>
+              <profile>
+                <id>paper-nms</id>
+                <repositories>
+                  <repository>
+                    <id>papermc</id>
+                    <url>https://repo.papermc.io/repository/maven-public/</url>
+                  </repository>
+                </repositories>
+              </profile>
+            </profiles>
+            <activeProfiles>
+              <activeProfile>paper-nms</activeProfile>
+            </activeProfiles>
+          </settings>
+          SETTINGS
+
       - name: Compila con Maven
         run: mvn clean package -q --no-transfer-progress
 
