@@ -2,7 +2,7 @@
 title CorpseReborn - Auto Deploy by Griffer
 color 0A
 
-set "SOURCE=C:\Users\Lorenzo\Downloads\CorpseReborn_1.21_v2_source\CorpseReborn_1.21"
+set "SOURCE=C:\Users\Lorenzo\Dev\CorpseReborn"
 set "SERVER=C:\Users\Lorenzo\Downloads\ServerMC_Test\ServerMC"
 set "GITHUB_USER=ItsLoree"
 set "REPO_NAME=CorpseReborn"
@@ -39,7 +39,7 @@ echo.
 echo [4/4] Aspetto che GitHub Actions compili...
 echo.
 
-set /a COUNT=55
+set /a COUNT=120
 :WAIT
 cls
 echo  ================================================
@@ -47,6 +47,7 @@ echo   CorpseReborn - Auto Deploy  ^|  by Griffer
 echo  ================================================
 echo.
 echo  GitHub sta compilando... attendo %COUNT% secondi
+echo  (Gradle e' piu' lento di Maven la prima volta)
 echo  Progresso: https://github.com/%GITHUB_USER%/%REPO_NAME%/actions
 echo.
 timeout /t 1 /nobreak >nul
@@ -54,10 +55,9 @@ set /a COUNT=%COUNT%-1
 if %COUNT% GTR 0 goto WAIT
 
 echo.
-echo [STOP SERVER] Fermo il server MC e chiudo il cmd...
+echo [STOP SERVER] Fermo il server MC...
 powershell -Command ^
   "Get-WmiObject Win32_Process | Where-Object { $_.CommandLine -like '*paper.jar*' } | ForEach-Object { $parent = Get-WmiObject Win32_Process -Filter ('ProcessId=' + $_.ParentProcessId); Stop-Process -Id $_.ProcessId -Force; if ($parent -and $parent.Name -eq 'cmd.exe') { Stop-Process -Id $parent.ProcessId -Force } }"
-echo [STOP SERVER] Attendo chiusura...
 timeout /t 5 /nobreak >nul
 
 echo [PULIZIA] Rimuovo jar vecchio dalla temp...
@@ -79,13 +79,11 @@ powershell -Command ^
   "$artifacts = Invoke-RestMethod -Uri \"https://api.github.com/repos/%GITHUB_USER%/%REPO_NAME%/actions/runs/$runId/artifacts\" -Headers $headers;" ^
   "$artifact = $artifacts.artifacts | Where-Object { $_.name -eq 'CorpseReborn-jar' } | Select-Object -First 1;" ^
   "Write-Host ('Download: ' + $artifact.name);" ^
-  "$downloadUrl = $artifact.archive_download_url;" ^
-  "Invoke-WebRequest -Uri $downloadUrl -Headers $headers -OutFile ($env:TEMP + '\CorpseReborn-jar.zip');" ^
+  "Invoke-WebRequest -Uri $artifact.archive_download_url -Headers $headers -OutFile ($env:TEMP + '\CorpseReborn-jar.zip');" ^
   "Write-Host 'Estraggo...';" ^
   "Expand-Archive -Path ($env:TEMP + '\CorpseReborn-jar.zip') -DestinationPath ($env:TEMP + '\CorpseReborn-jar') -Force;" ^
   "$jar = Get-ChildItem ($env:TEMP + '\CorpseReborn-jar\*.jar') | Select-Object -First 1;" ^
-  "$dest = '%SERVER%\plugins\';" ^
-  "Copy-Item $jar.FullName -Destination $dest -Force;" ^
+  "Copy-Item $jar.FullName -Destination 'C:\Users\Lorenzo\Downloads\ServerMC_Test\ServerMC\plugins\' -Force;" ^
   "Write-Host ('JAR copiato: ' + $jar.Name);" ^
   "Write-Host 'SUCCESSO!'"
 

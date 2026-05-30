@@ -1,0 +1,32 @@
+plugins {
+    id 'java'
+    id 'io.papermc.paperweight.userdev' version '2.0.0-beta.21'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'org.golde.bukkit'
+version = '3.0.0'
+description = 'Dead Bodies in Minecraft! - by Griffer'
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+repositories {
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+}
+
+dependencies {
+    paperweight.paperDevBundle('1.21.4-R0.1-SNAPSHOT')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+shadowJar {
+    archiveClassifier = ''
+}
+
+assemble.dependsOn reobfJar

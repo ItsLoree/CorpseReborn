@@ -2,7 +2,7 @@ main: org.golde.bukkit.corpsereborn.Main
 name: CorpseReborn
 authors: ["Griffer"]
 website: https://github.com/ItsLoree/CorpseReborn
-version: ${project.version}
+version: 3.0.0
 description: "Cadaveri in Minecraft! | by Griffer | Paper 1.21"
 load: POSTWORLD
 api-version: 1.21
