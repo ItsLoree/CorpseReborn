@@ -39,7 +39,7 @@ echo.
 echo [4/4] Aspetto che GitHub Actions compili...
 echo.
 
-set /a COUNT=75
+set /a COUNT=45
 :WAIT
 cls
 echo  ================================================

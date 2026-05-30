@@ -57,9 +57,15 @@ public class CorpseManager {
         data.setEntityId(entityIdCounter.incrementAndGet());
 
         // Copia GameProfile con skin del giocatore reale
-        WrappedGameProfile realProfile = WrappedGameProfile.fromPlayer(player);
         WrappedGameProfile profile = new WrappedGameProfile(UUID.randomUUID(), playerName);
-        profile.getProperties().putAll(realProfile.getProperties());
+        try {
+            WrappedGameProfile realProfile = WrappedGameProfile.fromPlayer(player);
+            if (realProfile != null && realProfile.getProperties() != null) {
+                profile.getProperties().putAll(realProfile.getProperties());
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("[CorpseReborn] Skin non caricata: " + e.getMessage());
+        }
         data.setGameProfile(profile);
 
         spawnHitbox(data);
