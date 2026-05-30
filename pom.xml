@@ -26,10 +26,10 @@
     </repositories>
 
     <dependencies>
-        <!-- Paper API 1.21 con accesso NMS (mojang-mapped) -->
+        <!-- Paper con NMS (mojang-mapped) -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
-            <artifactId>paper-api</artifactId>
+            <artifactId>paper</artifactId>
             <version>1.21.4-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
@@ -44,9 +44,6 @@
                 <configuration>
                     <source>21</source>
                     <target>21</target>
-                    <compilerArgs>
-                        <arg>--add-opens=java.base/java.lang=ALL-UNNAMED</arg>
-                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>
