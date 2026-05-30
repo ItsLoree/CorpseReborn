@@ -57,8 +57,8 @@ public class CorpseManager {
         data.setEntityId(entityIdCounter.incrementAndGet());
 
         // Copia GameProfile con skin del giocatore reale
-        // Usiamo solo API pubbliche di Paper/Bukkit
         UUID fakeUUID = UUID.randomUUID();
+        data.setFakeUUID(fakeUUID);
         WrappedGameProfile profile = new WrappedGameProfile(fakeUUID, playerName);
         try {
             // Ottieni texture tramite PlayerProfile API pubblica di Paper
@@ -101,6 +101,7 @@ public class CorpseManager {
         int entityId = data.getEntityId();
         Location loc = data.getLocation();
         WrappedGameProfile profile = data.getGameProfile();
+        UUID fakeUUID = data.getFakeUUID();
 
         try {
             // 1. PlayerInfo ADD_PLAYER
@@ -108,7 +109,7 @@ public class CorpseManager {
             infoPacket.getPlayerInfoActions().write(0,
                     EnumSet.of(PlayerInfoAction.ADD_PLAYER, PlayerInfoAction.UPDATE_LISTED));
             PlayerInfoData infoData = new PlayerInfoData(
-                    profile.getUUID(), 0, false,
+                    fakeUUID, 0, false,
                     NativeGameMode.SURVIVAL, profile,
                     (WrappedChatComponent) null,
                     (WrappedRemoteChatSessionData) null
@@ -122,7 +123,7 @@ public class CorpseManager {
                     // Spawn named entity
                     PacketContainer spawnPacket = protocolManager.createPacket(PacketType.Play.Server.NAMED_ENTITY_SPAWN);
                     spawnPacket.getIntegers().write(0, entityId);
-                    spawnPacket.getUUIDs().write(0, profile.getUUID());
+                    spawnPacket.getUUIDs().write(0, fakeUUID);
                     spawnPacket.getDoubles().write(0, loc.getX());
                     spawnPacket.getDoubles().write(1, loc.getY());
                     spawnPacket.getDoubles().write(2, loc.getZ());
@@ -170,7 +171,7 @@ public class CorpseManager {
                     Bukkit.getScheduler().runTaskLater(plugin, () -> {
                         try {
                             PacketContainer removeInfo = protocolManager.createPacket(PacketType.Play.Server.PLAYER_INFO_REMOVE);
-                            removeInfo.getUUIDLists().write(0, List.of(profile.getUUID()));
+                            removeInfo.getUUIDLists().write(0, List.of(fakeUUID));
                             protocolManager.sendServerPacket(viewer, removeInfo);
                         } catch (Exception ignored) {}
                     }, 40L);

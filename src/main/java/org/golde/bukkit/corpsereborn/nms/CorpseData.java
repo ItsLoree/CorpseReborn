@@ -24,6 +24,7 @@ public class CorpseData {
 
     // ProtocolLib
     private int entityId;
+    private UUID fakeUUID;
     private WrappedGameProfile gameProfile;
 
     private int despawnTaskId = -1;
@@ -58,6 +59,8 @@ public class CorpseData {
 
     public int getEntityId()  { return entityId; }
     public void setEntityId(int id) { this.entityId = id; }
+    public UUID getFakeUUID() { return fakeUUID; }
+    public void setFakeUUID(UUID uuid) { this.fakeUUID = uuid; }
     public WrappedGameProfile getGameProfile() { return gameProfile; }
     public void setGameProfile(WrappedGameProfile p) { this.gameProfile = p; }
 
