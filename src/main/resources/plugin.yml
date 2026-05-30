@@ -1,12 +1,12 @@
 main: org.golde.bukkit.corpsereborn.Main
 name: CorpseReborn
 authors: ["Griffer"]
-website: https://github.com/Griffer/CorpseReborn
+website: https://github.com/ItsLoree/CorpseReborn
 version: ${project.version}
-description: "Cadaveri in Minecraft! | Dead Bodies in Minecraft! | Paper 1.21 | by Griffer"
+description: "Cadaveri in Minecraft! | by Griffer | Paper 1.21"
 load: POSTWORLD
 api-version: 1.21
-softdepend: [WorldGuard]
+depend: [ProtocolLib]
 
 commands:
   spawncorpse:

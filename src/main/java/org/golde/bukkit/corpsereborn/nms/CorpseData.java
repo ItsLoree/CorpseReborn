@@ -1,7 +1,6 @@
 package org.golde.bukkit.corpsereborn.nms;
 
-import com.mojang.authlib.GameProfile;
-import net.minecraft.server.level.ServerPlayer;
+import com.comphenix.protocol.wrappers.WrappedGameProfile;
 import org.bukkit.Location;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.inventory.Inventory;
@@ -22,11 +21,10 @@ public class CorpseData {
     // Entità
     private ArmorStand bodyStand;
     private ArmorStand headStand;
-    private ArmorStand hitboxStand;
 
-    // NMS fake player
-    private ServerPlayer fakePlayer;
-    private GameProfile fakeProfile;
+    // ProtocolLib
+    private int entityId;
+    private WrappedGameProfile gameProfile;
 
     private int despawnTaskId = -1;
 
@@ -57,13 +55,11 @@ public class CorpseData {
     public void setBodyStand(ArmorStand s) { this.bodyStand = s; }
     public ArmorStand getHeadStand()  { return headStand; }
     public void setHeadStand(ArmorStand s) { this.headStand = s; }
-    public ArmorStand getHitboxStand()  { return hitboxStand; }
-    public void setHitboxStand(ArmorStand s) { this.hitboxStand = s; }
 
-    public ServerPlayer getFakePlayer() { return fakePlayer; }
-    public void setFakePlayer(ServerPlayer p) { this.fakePlayer = p; }
-    public GameProfile getFakeProfile() { return fakeProfile; }
-    public void setFakeProfile(GameProfile p) { this.fakeProfile = p; }
+    public int getEntityId()  { return entityId; }
+    public void setEntityId(int id) { this.entityId = id; }
+    public WrappedGameProfile getGameProfile() { return gameProfile; }
+    public void setGameProfile(WrappedGameProfile p) { this.gameProfile = p; }
 
     public int getDespawnTaskId()  { return despawnTaskId; }
     public void setDespawnTaskId(int id) { this.despawnTaskId = id; }
