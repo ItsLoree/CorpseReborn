@@ -120,15 +120,21 @@ public class CorpseManager {
             // 2. Aspetta 2 tick poi spawna
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 try {
-                    // Spawn named entity
-                    PacketContainer spawnPacket = protocolManager.createPacket(PacketType.Play.Server.NAMED_ENTITY_SPAWN);
-                    spawnPacket.getIntegers().write(0, entityId);
-                    spawnPacket.getUUIDs().write(0, fakeUUID);
+                    // Spawn entity (NAMED_ENTITY_SPAWN rimosso in 1.21, ora si usa SPAWN_ENTITY)
+                    PacketContainer spawnPacket = protocolManager.createPacket(PacketType.Play.Server.SPAWN_ENTITY);
+                    spawnPacket.getIntegers().write(0, entityId); // entity ID
+                    spawnPacket.getUUIDs().write(0, fakeUUID);    // UUID
+                    spawnPacket.getIntegers().write(1, 128);       // entity type = player (128 in 1.21)
                     spawnPacket.getDoubles().write(0, loc.getX());
                     spawnPacket.getDoubles().write(1, loc.getY());
                     spawnPacket.getDoubles().write(2, loc.getZ());
                     spawnPacket.getBytes().write(0, (byte)(loc.getYaw() * 256.0F / 360.0F));
                     spawnPacket.getBytes().write(1, (byte) 0);
+                    spawnPacket.getBytes().write(2, (byte)(loc.getYaw() * 256.0F / 360.0F));
+                    spawnPacket.getIntegers().write(2, 0); // data
+                    spawnPacket.getIntegers().write(3, 0); // velX
+                    spawnPacket.getIntegers().write(4, 0); // velY
+                    spawnPacket.getIntegers().write(5, 0); // velZ
                     protocolManager.sendServerPacket(viewer, spawnPacket);
 
                     // Metadata usando WrappedDataWatcher (approccio classico compatibile)
