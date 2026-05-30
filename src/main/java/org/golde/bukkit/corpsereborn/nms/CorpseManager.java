@@ -56,11 +56,9 @@ public class CorpseManager {
 
         data.setEntityId(entityIdCounter.incrementAndGet());
 
-        // GameProfile con skin del giocatore
-        UUID fakeUUID = UUID.randomUUID();
-        WrappedGameProfile profile = new WrappedGameProfile(fakeUUID, playerName);
-        // Copia le properties (skin) dal giocatore reale
+        // Copia GameProfile con skin del giocatore reale
         WrappedGameProfile realProfile = WrappedGameProfile.fromPlayer(player);
+        WrappedGameProfile profile = new WrappedGameProfile(UUID.randomUUID(), playerName);
         profile.getProperties().putAll(realProfile.getProperties());
         data.setGameProfile(profile);
 
@@ -116,29 +114,32 @@ public class CorpseManager {
                     spawnPacket.getBytes().write(1, (byte) 0);
                     protocolManager.sendServerPacket(viewer, spawnPacket);
 
-                    // Metadata: EntityPose.SLEEPING (index 6) + skin layers (index 17)
+                    // Metadata usando WrappedDataWatcher (approccio classico compatibile)
+                    WrappedDataWatcher watcher = new WrappedDataWatcher();
+
+                    // Index 6 = EntityPose, SLEEPING = 9
+                    WrappedDataWatcher.Serializer poseSerializer = WrappedDataWatcher.Registry.get(EnumWrappers.EntityPose.class);
+                    watcher.setObject(new WrappedDataWatcher.WrappedDataWatcherObject(6, poseSerializer), EnumWrappers.EntityPose.SLEEPING);
+
+                    // Index 17 = skin layers byte
+                    WrappedDataWatcher.Serializer byteSerializer = WrappedDataWatcher.Registry.get(Byte.class);
+                    watcher.setObject(new WrappedDataWatcher.WrappedDataWatcherObject(17, byteSerializer), (byte) 0x7F);
+
                     PacketContainer metaPacket = protocolManager.createPacket(PacketType.Play.Server.ENTITY_METADATA);
                     metaPacket.getIntegers().write(0, entityId);
-                    List<WrappedDataValue> metadata = new ArrayList<>();
-                    metadata.add(new WrappedDataValue(6,
-                            Registry.get(EnumWrappers.EntityPose.class),
-                            EnumWrappers.EntityPose.SLEEPING));
-                    metadata.add(new WrappedDataValue(17,
-                            Registry.get(Byte.class),
-                            (byte) 0x7F));
-                    metaPacket.getDataValueCollectionModifier().write(0, metadata);
+                    metaPacket.getWatchableCollectionModifier().write(0, watcher.getWatchableObjects());
                     protocolManager.sendServerPacket(viewer, metaPacket);
 
                     // Sleeping position
                     Location bedLoc = getBedLocation(loc);
+                    WrappedDataWatcher sleepWatcher = new WrappedDataWatcher();
+                    WrappedDataWatcher.Serializer blockPosSerializer = WrappedDataWatcher.Registry.getBlockPositionSerializer(true);
+                    sleepWatcher.setObject(new WrappedDataWatcher.WrappedDataWatcherObject(14, blockPosSerializer),
+                            new BlockPosition(bedLoc.getBlockX(), bedLoc.getBlockY(), bedLoc.getBlockZ()));
+
                     PacketContainer sleepPacket = protocolManager.createPacket(PacketType.Play.Server.ENTITY_METADATA);
                     sleepPacket.getIntegers().write(0, entityId);
-                    List<WrappedDataValue> sleepMeta = new ArrayList<>();
-                    sleepMeta.add(new WrappedDataValue(14,
-                            Registry.get(Optional.class),
-                            Optional.of(new BlockPosition(bedLoc.getBlockX(),
-                                    bedLoc.getBlockY(), bedLoc.getBlockZ()))));
-                    sleepPacket.getDataValueCollectionModifier().write(0, sleepMeta);
+                    sleepPacket.getWatchableCollectionModifier().write(0, sleepWatcher.getWatchableObjects());
                     protocolManager.sendServerPacket(viewer, sleepPacket);
 
                     // Fake bed block
@@ -153,7 +154,7 @@ public class CorpseManager {
                     Bukkit.getScheduler().runTaskLater(plugin, () -> {
                         try {
                             PacketContainer removeInfo = protocolManager.createPacket(PacketType.Play.Server.PLAYER_INFO_REMOVE);
-                            removeInfo.getLists(MinecraftReflection.getUUIDClass()).write(0, List.of(profile.getUUID()));
+                            removeInfo.getUUIDLists().write(0, List.of(profile.getUUID()));
                             protocolManager.sendServerPacket(viewer, removeInfo);
                         } catch (Exception ignored) {}
                     }, 40L);
@@ -272,8 +273,6 @@ public class CorpseManager {
         }
         return result;
     }
-
-    // ── SAVE / LOAD ──
 
     public void saveCorpses() {
         if (!plugin.getConfigData().shouldSaveCorpses()) return;
