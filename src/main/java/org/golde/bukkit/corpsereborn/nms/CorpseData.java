@@ -1,6 +1,5 @@
 package org.golde.bukkit.corpsereborn.nms;
 
-import com.comphenix.protocol.wrappers.WrappedGameProfile;
 import org.bukkit.Location;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.inventory.Inventory;
@@ -18,15 +17,8 @@ public class CorpseData {
     private long spawnTime;
     private int corpseTime;
 
-    // Entità
     private ArmorStand bodyStand;
     private ArmorStand headStand;
-
-    // ProtocolLib
-    private int entityId;
-    private UUID fakeUUID;
-    private WrappedGameProfile gameProfile;
-
     private int despawnTaskId = -1;
 
     public CorpseData(String playerName, String playerUUID, Location location,
@@ -56,13 +48,6 @@ public class CorpseData {
     public void setBodyStand(ArmorStand s) { this.bodyStand = s; }
     public ArmorStand getHeadStand()  { return headStand; }
     public void setHeadStand(ArmorStand s) { this.headStand = s; }
-
-    public int getEntityId()  { return entityId; }
-    public void setEntityId(int id) { this.entityId = id; }
-    public UUID getFakeUUID() { return fakeUUID; }
-    public void setFakeUUID(UUID uuid) { this.fakeUUID = uuid; }
-    public WrappedGameProfile getGameProfile() { return gameProfile; }
-    public void setGameProfile(WrappedGameProfile p) { this.gameProfile = p; }
 
     public int getDespawnTaskId()  { return despawnTaskId; }
     public void setDespawnTaskId(int id) { this.despawnTaskId = id; }

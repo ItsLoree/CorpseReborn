@@ -6,7 +6,7 @@ version: ${project.version}
 description: "Cadaveri in Minecraft! | by Griffer | Paper 1.21"
 load: POSTWORLD
 api-version: 1.21
-depend: [ProtocolLib]
+softdepend: [WorldGuard]
 
 commands:
   spawncorpse:

@@ -1,17 +1,13 @@
 package org.golde.bukkit.corpsereborn.nms;
 
-import com.comphenix.protocol.PacketType;
-import com.comphenix.protocol.ProtocolLibrary;
-import com.comphenix.protocol.ProtocolManager;
-import com.comphenix.protocol.events.PacketContainer;
-import com.comphenix.protocol.wrappers.*;
-import com.comphenix.protocol.wrappers.EnumWrappers.*;
 import org.bukkit.*;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.util.EulerAngle;
 import org.golde.bukkit.corpsereborn.ConfigData;
 import org.golde.bukkit.corpsereborn.Lang;
 import org.golde.bukkit.corpsereborn.Main;
@@ -20,24 +16,19 @@ import org.golde.bukkit.corpsereborn.CorpseAPI.events.CorpseSpawnEvent;
 
 import java.io.File;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * CorpseManager - by Griffer
- * Usa ProtocolLib per spawnare fake player con EntityPose.SLEEPING
+ * Corpo disteso usando due ArmorStand sovrapposti.
  */
 public class CorpseManager {
 
     private final Main plugin;
-    private final ProtocolManager protocolManager;
     private final List<CorpseData> corpses = new ArrayList<>();
     private File saveFile;
 
-    private static final AtomicInteger entityIdCounter = new AtomicInteger(2000000);
-
     public CorpseManager(Main plugin) {
         this.plugin = plugin;
-        this.protocolManager = ProtocolLibrary.getProtocolManager();
         this.saveFile = new File(plugin.getDataFolder(), "corpses.yml");
     }
 
@@ -54,35 +45,7 @@ public class CorpseManager {
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) return null;
 
-        data.setEntityId(entityIdCounter.incrementAndGet());
-
-        // Copia GameProfile con skin del giocatore reale
-        UUID fakeUUID = UUID.randomUUID();
-        data.setFakeUUID(fakeUUID);
-        WrappedGameProfile profile = new WrappedGameProfile(fakeUUID, playerName);
-        try {
-            // Ottieni texture tramite PlayerProfile API pubblica di Paper
-            org.bukkit.profile.PlayerProfile paperProfile = player.getPlayerProfile();
-            org.bukkit.profile.PlayerTextures textures = paperProfile.getTextures();
-            if (textures.getSkin() != null) {
-                // Costruisci la property texture manualmente
-                String skinUrl = textures.getSkin().toString();
-                // Encode in base64 come Minecraft si aspetta
-                String textureJson = "{\"textures\":{\"SKIN\":{\"url\":\"" + skinUrl + "\"}}}";
-                String encoded = java.util.Base64.getEncoder().encodeToString(textureJson.getBytes());
-                profile.getProperties().put("textures",
-                        new WrappedSignedProperty("textures", encoded, null));
-            }
-        } catch (Exception e) {
-            plugin.getLogger().warning("[CorpseReborn] Skin non caricata: " + e.getMessage());
-        }
-        data.setGameProfile(profile);
-
-        spawnHitbox(data);
-
-        for (Player online : Bukkit.getOnlinePlayers()) {
-            sendSpawnPackets(online, data, player);
-        }
+        spawnArmorStands(data, player);
 
         if (cfg.getCorpseTime() > 0) {
             int taskId = Bukkit.getScheduler().scheduleSyncDelayedTask(plugin,
@@ -95,135 +58,72 @@ public class CorpseManager {
         return data;
     }
 
-    public void sendSpawnPackets(Player viewer, CorpseData data, Player deadPlayer) {
-        if (Main.whoCanNotSeeCorpses.contains(viewer.getName())) return;
+    private void spawnArmorStands(CorpseData data, Player player) {
+        ConfigData cfg = plugin.getConfigData();
+        Location loc = data.getLocation().clone();
+        float yaw = player != null ? player.getLocation().getYaw() : loc.getYaw();
 
-        int entityId = data.getEntityId();
-        Location loc = data.getLocation();
-        WrappedGameProfile profile = data.getGameProfile();
-        UUID fakeUUID = data.getFakeUUID();
-
-        try {
-            // 1. PlayerInfo ADD_PLAYER
-            PacketContainer infoPacket = protocolManager.createPacket(PacketType.Play.Server.PLAYER_INFO);
-            infoPacket.getPlayerInfoActions().write(0,
-                    EnumSet.of(PlayerInfoAction.ADD_PLAYER, PlayerInfoAction.UPDATE_LISTED));
-            PlayerInfoData infoData = new PlayerInfoData(
-                    fakeUUID, 0, false,
-                    NativeGameMode.SURVIVAL, profile,
-                    (WrappedChatComponent) null,
-                    (WrappedRemoteChatSessionData) null
-            );
-            infoPacket.getPlayerInfoDataLists().write(1, List.of(infoData));
-            protocolManager.sendServerPacket(viewer, infoPacket);
-
-            // 2. Aspetta 2 tick poi spawna
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                try {
-                    // Spawn entity per 1.21
-                    PacketContainer spawnPacket = protocolManager.createPacket(PacketType.Play.Server.SPAWN_ENTITY);
-                    spawnPacket.getIntegers().write(0, entityId); // entity ID
-                    spawnPacket.getUUIDs().write(0, fakeUUID);    // UUID
-                    spawnPacket.getIntegers().write(1, 128);       // entity type = player
-                    spawnPacket.getDoubles().write(0, loc.getX());
-                    spawnPacket.getDoubles().write(1, loc.getY());
-                    spawnPacket.getDoubles().write(2, loc.getZ());
-                    spawnPacket.getBytes().write(0, (byte)(loc.getYaw() * 256.0F / 360.0F));
-                    spawnPacket.getBytes().write(1, (byte) 0);
-                    protocolManager.sendServerPacket(viewer, spawnPacket);
-
-                    // Metadata usando WrappedDataWatcher (approccio classico compatibile)
-                    WrappedDataWatcher watcher = new WrappedDataWatcher();
-
-                    // Index 6 = EntityPose, SLEEPING = 9
-                    WrappedDataWatcher.Serializer poseSerializer = WrappedDataWatcher.Registry.get(EnumWrappers.EntityPose.class);
-                    watcher.setObject(new WrappedDataWatcher.WrappedDataWatcherObject(6, poseSerializer), EnumWrappers.EntityPose.SLEEPING);
-
-                    // Index 17 = skin layers byte
-                    WrappedDataWatcher.Serializer byteSerializer = WrappedDataWatcher.Registry.get(Byte.class);
-                    watcher.setObject(new WrappedDataWatcher.WrappedDataWatcherObject(17, byteSerializer), (byte) 0x7F);
-
-                    PacketContainer metaPacket = protocolManager.createPacket(PacketType.Play.Server.ENTITY_METADATA);
-                    metaPacket.getIntegers().write(0, entityId);
-                    metaPacket.getWatchableCollectionModifier().write(0, watcher.getWatchableObjects());
-                    protocolManager.sendServerPacket(viewer, metaPacket);
-
-                    // Sleeping position
-                    Location bedLoc = getBedLocation(loc);
-                    WrappedDataWatcher sleepWatcher = new WrappedDataWatcher();
-                    WrappedDataWatcher.Serializer blockPosSerializer = WrappedDataWatcher.Registry.getBlockPositionSerializer(true);
-                    sleepWatcher.setObject(new WrappedDataWatcher.WrappedDataWatcherObject(14, blockPosSerializer),
-                            new BlockPosition(bedLoc.getBlockX(), bedLoc.getBlockY(), bedLoc.getBlockZ()));
-
-                    PacketContainer sleepPacket = protocolManager.createPacket(PacketType.Play.Server.ENTITY_METADATA);
-                    sleepPacket.getIntegers().write(0, entityId);
-                    sleepPacket.getWatchableCollectionModifier().write(0, sleepWatcher.getWatchableObjects());
-                    protocolManager.sendServerPacket(viewer, sleepPacket);
-
-                    // Fake bed block
-                    viewer.sendBlockChange(bedLoc, Material.WHITE_BED.createBlockData());
-
-                    // Equipaggiamento
-                    if (plugin.getConfigData().shouldRenderArmor() && deadPlayer != null) {
-                        sendEquipmentPackets(viewer, data, deadPlayer);
-                    }
-
-                    // Rimuovi dalla tablist dopo 40 tick
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                        try {
-                            PacketContainer removeInfo = protocolManager.createPacket(PacketType.Play.Server.PLAYER_INFO_REMOVE);
-                            removeInfo.getUUIDLists().write(0, List.of(fakeUUID));
-                            protocolManager.sendServerPacket(viewer, removeInfo);
-                        } catch (Exception ignored) {}
-                    }, 40L);
-
-                } catch (Exception e) {
-                    plugin.getLogger().warning("[CorpseReborn] Errore spawn: " + e.getMessage());
-                }
-            }, 2L);
-
-        } catch (Exception e) {
-            plugin.getLogger().warning("[CorpseReborn] Errore info: " + e.getMessage());
-        }
-    }
-
-    private void sendEquipmentPackets(Player viewer, CorpseData data, Player deadPlayer) {
-        try {
-            PacketContainer equipPacket = protocolManager.createPacket(PacketType.Play.Server.ENTITY_EQUIPMENT);
-            equipPacket.getIntegers().write(0, data.getEntityId());
-            List<com.comphenix.protocol.wrappers.Pair<EnumWrappers.ItemSlot, ItemStack>> equipment = new ArrayList<>();
-            var inv = deadPlayer.getInventory();
-            if (inv.getHelmet() != null)     equipment.add(new com.comphenix.protocol.wrappers.Pair<>(EnumWrappers.ItemSlot.HEAD, inv.getHelmet()));
-            if (inv.getChestplate() != null) equipment.add(new com.comphenix.protocol.wrappers.Pair<>(EnumWrappers.ItemSlot.CHEST, inv.getChestplate()));
-            if (inv.getLeggings() != null)   equipment.add(new com.comphenix.protocol.wrappers.Pair<>(EnumWrappers.ItemSlot.LEGS, inv.getLeggings()));
-            if (inv.getBoots() != null)      equipment.add(new com.comphenix.protocol.wrappers.Pair<>(EnumWrappers.ItemSlot.FEET, inv.getBoots()));
-            if (!equipment.isEmpty()) {
-                equipPacket.getSlotStackPairLists().write(0, equipment);
-                protocolManager.sendServerPacket(viewer, equipPacket);
-            }
-        } catch (Exception e) {
-            plugin.getLogger().warning("[CorpseReborn] Errore equipment: " + e.getMessage());
-        }
-    }
-
-    private void spawnHitbox(CorpseData data) {
-        Location loc = data.getLocation();
-        ArmorStand hitbox = loc.getWorld().spawn(loc, ArmorStand.class, stand -> {
+        // Body stand - disteso a terra
+        Location bodyLoc = loc.clone().add(0, -0.8, 0);
+        ArmorStand body = loc.getWorld().spawn(bodyLoc, ArmorStand.class, stand -> {
             stand.setVisible(false);
             stand.setGravity(false);
             stand.setInvulnerable(true);
             stand.setSmall(false);
+            stand.setArms(true);
+            stand.setBasePlate(false);
+            stand.setCanPickupItems(false);
+            stand.setRotation(yaw, 0);
+
+            // Pose corpo disteso
+            stand.setBodyPose(new EulerAngle(Math.toRadians(90), 0, 0));
+            stand.setLeftArmPose(new EulerAngle(Math.toRadians(90), 0, Math.toRadians(-30)));
+            stand.setRightArmPose(new EulerAngle(Math.toRadians(90), 0, Math.toRadians(30)));
+            stand.setLeftLegPose(new EulerAngle(Math.toRadians(90), 0, Math.toRadians(-5)));
+            stand.setRightLegPose(new EulerAngle(Math.toRadians(90), 0, Math.toRadians(5)));
+
+            // Armatura
+            if (cfg.shouldRenderArmor() && player != null) {
+                var inv = player.getInventory();
+                if (inv.getChestplate() != null) stand.getEquipment().setChestplate(inv.getChestplate().clone());
+                if (inv.getLeggings() != null)   stand.getEquipment().setLeggings(inv.getLeggings().clone());
+                if (inv.getBoots() != null)       stand.getEquipment().setBoots(inv.getBoots().clone());
+            }
+
+            stand.setCustomNameVisible(false);
+        });
+
+        // Head stand - skull del giocatore posizionato alla testa
+        double rad = Math.toRadians(yaw);
+        Location headLoc = bodyLoc.clone().add(-Math.sin(rad) * 0.9, 0.25, Math.cos(rad) * 0.9);
+        ArmorStand head = loc.getWorld().spawn(headLoc, ArmorStand.class, stand -> {
+            stand.setVisible(false);
+            stand.setGravity(false);
+            stand.setInvulnerable(true);
+            stand.setSmall(true);
             stand.setArms(false);
             stand.setBasePlate(false);
             stand.setCanPickupItems(false);
             stand.setCustomNameVisible(false);
-        });
-        data.setBodyStand(hitbox);
-        data.setHeadStand(hitbox);
-    }
+            stand.setRotation(yaw, 0);
 
-    private Location getBedLocation(Location loc) {
-        return loc.clone().subtract(0, 2, 0);
+            // Skull con skin del giocatore
+            ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
+            SkullMeta meta = (SkullMeta) skull.getItemMeta();
+            if (player != null) {
+                meta.setOwningPlayer(player);
+            } else {
+                try {
+                    OfflinePlayer op = Bukkit.getOfflinePlayer(UUID.fromString(data.getPlayerUUID()));
+                    meta.setOwningPlayer(op);
+                } catch (Exception ignored) {}
+            }
+            skull.setItemMeta(meta);
+            stand.getEquipment().setHelmet(skull);
+        });
+
+        data.setBodyStand(body);
+        data.setHeadStand(head);
     }
 
     public void removeCorpse(CorpseData data) {
@@ -232,18 +132,6 @@ public class CorpseManager {
 
         CorpseRemoveEvent event = new CorpseRemoveEvent(data);
         Bukkit.getPluginManager().callEvent(event);
-
-        if (data.getEntityId() > 0) {
-            for (Player online : Bukkit.getOnlinePlayers()) {
-                try {
-                    PacketContainer destroyPacket = protocolManager.createPacket(PacketType.Play.Server.ENTITY_DESTROY);
-                    destroyPacket.getIntLists().write(0, List.of(data.getEntityId()));
-                    protocolManager.sendServerPacket(online, destroyPacket);
-                    Location bedLoc = getBedLocation(data.getLocation());
-                    online.sendBlockChange(bedLoc, bedLoc.getBlock().getBlockData());
-                } catch (Exception ignored) {}
-            }
-        }
 
         if (data.getBodyStand() != null && !data.getBodyStand().isDead()) data.getBodyStand().remove();
         if (data.getHeadStand() != null && !data.getHeadStand().isDead()
@@ -274,7 +162,7 @@ public class CorpseManager {
     public List<CorpseData> getAllCorpses() { return Collections.unmodifiableList(corpses); }
 
     public void resendCorpsesToPlayer(Player player) {
-        for (CorpseData data : corpses) sendSpawnPackets(player, data, null);
+        // Con ArmorStand non serve resend - sono entità reali
     }
 
     private Location findGroundLocation(Location loc) {
@@ -350,11 +238,7 @@ public class CorpseManager {
                 }
             }
             CorpseData data = new CorpseData(playerName, yml.getString(p + "player-uuid", ""), loc, inv, selectedSlot, corpseTime);
-            data.setEntityId(entityIdCounter.incrementAndGet());
-            WrappedGameProfile profile = new WrappedGameProfile(UUID.randomUUID(), playerName);
-            data.setGameProfile(profile);
-            spawnHitbox(data);
-            for (Player online : Bukkit.getOnlinePlayers()) sendSpawnPackets(online, data, null);
+            spawnArmorStands(data, null);
             if (corpseTime > 0) {
                 long elapsed   = (System.currentTimeMillis() - spawnTime) / 1000;
                 long remaining = Math.max(1, corpseTime - elapsed);
