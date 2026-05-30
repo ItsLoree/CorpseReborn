@@ -20,6 +20,7 @@ import org.golde.bukkit.corpsereborn.CorpseAPI.events.CorpseSpawnEvent;
 
 import java.io.File;
 import java.util.*;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -57,11 +58,23 @@ public class CorpseManager {
         data.setEntityId(entityIdCounter.incrementAndGet());
 
         // Copia GameProfile con skin del giocatore reale
-        WrappedGameProfile profile = new WrappedGameProfile(UUID.randomUUID(), playerName);
+        // Usiamo PlayerProfile di Paper invece di WrappedGameProfile.fromPlayer
+        UUID fakeUUID = UUID.randomUUID();
+        WrappedGameProfile profile = new WrappedGameProfile(fakeUUID, playerName);
         try {
-            WrappedGameProfile realProfile = WrappedGameProfile.fromPlayer(player);
-            if (realProfile != null && realProfile.getProperties() != null) {
-                profile.getProperties().putAll(realProfile.getProperties());
+            // Ottieni le properties della skin tramite il profilo Paper
+            org.bukkit.profile.PlayerProfile paperProfile = player.getPlayerProfile();
+            if (paperProfile.getTextures().getSkin() != null) {
+                // Copia le proprietà tramite reflection sul GameProfile interno
+                Object nmsProfile = ((org.bukkit.craftbukkit.profile.CraftPlayerProfile) paperProfile).buildGameProfile();
+                com.mojang.authlib.GameProfile mojangProfile = (com.mojang.authlib.GameProfile) nmsProfile;
+                for (Map.Entry<String, com.mojang.authlib.properties.Property> entry : mojangProfile.getProperties().entries()) {
+                    profile.getProperties().put(entry.getKey(),
+                            new com.comphenix.protocol.wrappers.WrappedSignedProperty(
+                                    entry.getValue().name(),
+                                    entry.getValue().value(),
+                                    entry.getValue().signature()));
+                }
             }
         } catch (Exception e) {
             plugin.getLogger().warning("[CorpseReborn] Skin non caricata: " + e.getMessage());
@@ -204,10 +217,7 @@ public class CorpseManager {
             stand.setArms(false);
             stand.setBasePlate(false);
             stand.setCanPickupItems(false);
-            if (plugin.getConfigData().shouldShowNametag()) {
-                stand.setCustomName(Lang.color("&7✦ &f" + data.getPlayerName() + " &7✦"));
-                stand.setCustomNameVisible(true);
-            }
+            stand.setCustomNameVisible(false);
         });
         data.setBodyStand(hitbox);
         data.setHeadStand(hitbox);

@@ -32,7 +32,7 @@ public class InventoryClickListener implements Listener {
         if (!plugin.getConfigData().hasLootingInventory()) return;
 
         if (data.getInventory() == null || data.isInventoryEmpty()) {
-            player.sendMessage(Lang.get("finish-looting", "%player%", data.getPlayerName()));
+            // Inventario già vuoto - non mostrare messaggio, non fare nulla
             return;
         }
 
@@ -44,11 +44,8 @@ public class InventoryClickListener implements Listener {
         if (!(event.getPlayer() instanceof Player player)) return;
         for (var data : plugin.getCorpseManager().getAllCorpses()) {
             if (data.getInventory() != null && data.getInventory().equals(event.getInventory())) {
-                if (data.isInventoryEmpty()) {
-                    player.sendMessage(Lang.get("finish-looting", "%player%", data.getPlayerName()));
-                    if (plugin.getConfigData().shouldDespawnOnLooted()) {
-                        plugin.getCorpseManager().removeCorpse(data);
-                    }
+                if (data.isInventoryEmpty() && plugin.getConfigData().shouldDespawnOnLooted()) {
+                    plugin.getCorpseManager().removeCorpse(data);
                 }
                 break;
             }
